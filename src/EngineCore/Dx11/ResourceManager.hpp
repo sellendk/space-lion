@@ -26,6 +26,14 @@ namespace EngineCore
 {
     namespace Graphics
     {
+        struct FontInfo {
+            FontInfo() : default_font_name(L"Segoe UI"), special_font_ranges({}), custom_font_filepaths({}) {}
+
+            std::wstring                                              default_font_name;
+            std::vector<std::tuple<std::wstring, uint32_t, uint32_t>> special_font_ranges;
+            std::vector<std::wstring>                                 custom_font_filepaths;
+        };
+
         namespace Dx11
         {
 
@@ -484,8 +492,7 @@ namespace EngineCore
                 ResourceID createTextTexture2DAsync(
                     std::string const& name,
                     std::wstring const& text,
-                    bool leadingSymbol,
-                    float font_size,
+                    FontInfo const& font_info,
                     std::array<float, 4> text_color,
                     std::array<float, 4> bckgrnd_color,
                     D3D11_TEXTURE2D_DESC const& desc,
