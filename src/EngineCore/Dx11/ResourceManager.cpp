@@ -523,6 +523,7 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
 
             TextTextureInfo text_info(desc.Width, desc.Height);
             text_info.FontName = font_info.default_font_name.c_str();
+            text_info.FontSize = font_info.font_size;
             text_info.Foreground = text_color;
             text_info.Background = bckgrnd_color;
             text_info.SpecialFontRanges = font_info.special_font_ranges;

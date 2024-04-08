@@ -27,9 +27,10 @@ namespace EngineCore
     namespace Graphics
     {
         struct FontInfo {
-            FontInfo() : default_font_name(L"Segoe UI"), special_font_ranges({}), custom_font_filepaths({}) {}
+            FontInfo() : default_font_name(L"Segoe UI"), font_size(18.0f), special_font_ranges({}), custom_font_filepaths({}) {}
 
             std::wstring                                              default_font_name;
+            float                                                     font_size;
             std::vector<std::tuple<std::wstring, uint32_t, uint32_t>> special_font_ranges;
             std::vector<std::wstring>                                 custom_font_filepaths;
         };
