@@ -91,3 +91,51 @@ void EngineCore::Animation::animateBillboards(
         transform_mngr.setOrientation(entity_idx, r);
     }
 }
+
+void EngineCore::Animation::animatioMoveTo(
+    EngineCore::Common::TransformComponentManager& transform_mngr,
+    EngineCore::Animation::MoveToComponentManager& moveto_mngr,
+    double dt,
+    Utility::TaskScheduler& task_scheduler)
+{
+    size_t component_cnt = moveto_mngr.getComponentCount();
+
+    std::vector<std::pair<size_t, size_t>> from_to_pairs;
+    size_t bucket_cnt = 6;
+    for (size_t i = 0; i < bucket_cnt; ++i) {
+        from_to_pairs.push_back({ component_cnt * (float(i) / float(bucket_cnt)), component_cnt * (float(i + 1) / float(bucket_cnt)) });
+    }
+
+    for (auto from_to : from_to_pairs) {
+        task_scheduler.submitTask(
+            [&transform_mngr, &moveto_mngr, from_to, dt]() {
+                for (size_t i = from_to.first; i < from_to.second; ++i)
+                {
+                    if (moveto_mngr.checkComponent(i)) {
+                        auto const& cmp = moveto_mngr.getComponent(i);
+
+                        auto transform_idx = transform_mngr.getIndex(cmp.entity);
+
+                        if (cmp.move_orientation == MoveToComponentManager::Space::LOCAL)
+                        {
+                            auto current_position = transform_mngr.getPosition(transform_idx);
+                            auto move_direction = cmp.target_position - current_position;
+                            auto distance = glm::length(move_direction);
+                            if (distance > std::numeric_limits<float>::epsilon())
+                            {
+                                move_direction /= distance;
+                                transform_mngr.translate(transform_idx, move_direction * std::min(distance, static_cast<float>(cmp.speed * dt)));
+                            }
+                        }
+                        else
+                        {
+                            //TODO
+                        }
+                    }
+                }
+            }
+        );
+    }
+
+    task_scheduler.waitWhileBusy();
+}

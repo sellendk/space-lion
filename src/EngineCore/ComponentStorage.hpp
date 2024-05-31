@@ -32,6 +32,8 @@ namespace EngineCore {
 
             T getComponentCopy(size_t component_index) const;
 
+            bool checkComponent(size_t page_index, size_t index_in_page) const;
+
             std::pair<size_t, size_t> getIndices(size_t component_index) const;
 
             std::unique_lock<std::shared_mutex> accquirePageLock(size_t page_index) const;
@@ -160,6 +162,14 @@ namespace EngineCore {
             assert(components_[page_index].storage != nullptr);
 
             return components_[page_index].storage->at(index_in_page).second;
+        }
+
+        template<typename T, size_t PageCount, size_t PageSize>
+        inline bool ComponentStorage<T, PageCount, PageSize>::checkComponent(size_t page_index, size_t index_in_page) const
+        {
+            assert(components_[page_index].storage != nullptr);
+
+            return components_[page_index].storage->operator[](index_in_page).first;
         }
 
         template<typename T, size_t PageCount, size_t PageSize>

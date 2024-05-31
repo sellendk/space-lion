@@ -1,12 +1,12 @@
 #ifndef AnimationSystems_hpp
 #define AnimationSystems_hpp
 
-
+#include "BillboardComponentManager.hpp"
+#include "MoveToComponentManager.hpp"
+#include "TagAlongComponentManager.hpp"
+#include "TaskScheduler.hpp"
 #include "TransformComponentManager.hpp"
 #include "TurntableComponentManager.hpp"
-#include "TagAlongComponentManager.hpp"
-#include "BillboardComponentManager.hpp"
-#include "TaskScheduler.hpp"
 
 namespace EngineCore {
 namespace Animation {
@@ -15,7 +15,7 @@ namespace Animation {
         EngineCore::Common::TransformComponentManager& transform_mngr,
         EngineCore::Animation::TurntableComponentManager& turntable_mngr,
         double dt,
-        Utility::TaskScheduler& task_schedueler);
+        Utility::TaskScheduler& task_scheduler);
 
     void animateTagAlong(
         EngineCore::Common::TransformComponentManager& transform_mngr,
@@ -26,6 +26,12 @@ namespace Animation {
         EngineCore::Common::TransformComponentManager& transform_mngr,
         EngineCore::Animation::BillboardComponentManager& billboard_mngr,
         double dt);
+
+    void animatioMoveTo(
+        EngineCore::Common::TransformComponentManager& transform_mngr,
+        EngineCore::Animation::MoveToComponentManager& moveto_mngr,
+        double dt,
+        Utility::TaskScheduler& task_scheduler);
 }
 }
 

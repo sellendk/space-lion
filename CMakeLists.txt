@@ -40,14 +40,16 @@ SET (ENGINECORE_ANIMATION_HEADER_FILES
         src/EngineCore/TagAlongComponentManager.hpp
         src/EngineCore/BillboardComponentManager.hpp
         src/EngineCore/AnimationSystems.hpp
-        src/EngineCore/SkinComponentManager.hpp)
+        src/EngineCore/SkinComponentManager.hpp
+        src/EngineCore/MoveToComponentManager.hpp)
 
 SET (ENGINECORE_ANIMATION_SOURCE_FILES
         src/EngineCore/TurntableComponentManager.cpp
         src/EngineCore/TagAlongComponentManager.cpp
         src/EngineCore/BillboardComponentManager.cpp
         src/EngineCore/AnimationSystems.cpp
-        src/EngineCore/SkinComponentManager.cpp)
+        src/EngineCore/SkinComponentManager.cpp
+        src/EngineCore/MoveToComponentManager.cpp)
 
 SET (ENGINECORE_COMMON_HEADER_FILES
         src/EngineCore/BaseComponentManager.hpp
@@ -57,7 +59,6 @@ SET (ENGINECORE_COMMON_HEADER_FILES
         src/EngineCore/EntityManager.hpp
         src/EngineCore/Frame.hpp
         src/EngineCore/InputEvent.hpp
-        src/EngineCore/MoveToComponentManager.hpp
         src/EngineCore/NameComponentManager.hpp
         src/EngineCore/ProximityTriggerComponentManager.hpp
         src/EngineCore/TransformComponentManager.hpp
@@ -67,7 +68,6 @@ SET (ENGINECORE_COMMON_SOURCE_FILES
         src/EngineCore/BSplineComponent.cpp
         src/EngineCore/EntityManager.cpp
         src/EngineCore/Frame.cpp
-        src/EngineCore/MoveToComponentManager.cpp
         src/EngineCore/NameComponentManager.cpp
         src/EngineCore/ProximityTriggerComponentManager.cpp
         src/EngineCore/TransformComponentManager.cpp

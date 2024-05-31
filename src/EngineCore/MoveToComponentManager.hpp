@@ -7,12 +7,12 @@
 
 namespace EngineCore
 {
-    namespace Common
+    namespace Animation
     {
 
         class MoveToComponentManager : public BaseSingleInstanceComponentManager
         {
-        private:
+        public:
             enum class Space
             {
                 GLOBAL,
@@ -27,17 +27,23 @@ namespace EngineCore
                 Space  move_orientation; ///< space in which the movement occurs (local or global)
             };
 
+        private:
+
             Utility::ComponentStorage<Data, 1000, 1000> data_;
 
         public:
             MoveToComponentManager() = default;
             ~MoveToComponentManager() = default;
 
-            inline size_t addComponent(Entity entity, Vec3 target_position, float speed = 1.0f, Space move_orientation = Space::LOCAL);
+            size_t addComponent(Entity entity, Vec3 target_position, float speed = 1.0f, Space move_orientation = Space::LOCAL);
 
             void deleteComponent(Entity entity);
 
             size_t getComponentCount() const;
+
+            bool checkComponent(size_t index) const;
+
+            Data const& getComponent(size_t index) const;
         };
 
     }
