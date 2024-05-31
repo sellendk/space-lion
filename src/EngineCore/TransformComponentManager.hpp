@@ -43,7 +43,7 @@ namespace EngineCore
 
             size_t addComponent(Entity entity, Vec3 position = Vec3(), Quat orientation = Quat(), Vec3 scale = Vec3(1.0));
 
-            void deleteComonent(Entity entity);
+            void deleteComponent(Entity entity);
 
             size_t getComponentCount() const;
 

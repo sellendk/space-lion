@@ -43,7 +43,7 @@ namespace EngineCore
             return index;
         }
 
-        void TransformComponentManager::deleteComonent(Entity entity)
+        void TransformComponentManager::deleteComponent(Entity entity)
         {
             auto query = getIndex(entity);
 
