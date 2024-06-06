@@ -44,6 +44,10 @@ namespace EngineCore
             bool checkComponent(size_t index) const;
 
             Data const& getComponent(size_t index) const;
+
+            void setTargetPosition(Entity entity, Vec3 target_position);
+
+            void setTargetPosition(size_t index, Vec3 target_position);
         };
 
     }

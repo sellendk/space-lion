@@ -39,3 +39,17 @@ EngineCore::Animation::MoveToComponentManager::Data const& EngineCore::Animation
     auto indices = data_.getIndices(index);
     return data_(indices.first, indices.second);
 }
+
+void EngineCore::Animation::MoveToComponentManager::setTargetPosition(Entity entity, Vec3 target_position)
+{
+    auto idx = getIndex(entity.id());
+
+    setTargetPosition(idx, target_position);
+}
+
+void EngineCore::Animation::MoveToComponentManager::setTargetPosition(size_t index, Vec3 target_position)
+{
+    auto indices = data_.getIndices(index);
+
+    data_(indices.first, indices.second).target_position = target_position;
+}
