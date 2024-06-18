@@ -19,6 +19,7 @@
 #include <dxowl/VertexDescriptor.hpp>
 
 #include <d3d11_4.h>
+#include <dwrite.h>
 
 #include <future>
 
@@ -27,10 +28,21 @@ namespace EngineCore
     namespace Graphics
     {
         struct FontInfo {
-            FontInfo() : default_font_name(L"Segoe UI"), font_size(18.0f), special_font_ranges({}), custom_font_filepaths({}) {}
+            FontInfo() 
+                : default_font_name(L"Segoe UI"), 
+                font_size(18.0f),
+                foreground{ 0,0,0,1 },
+                background{ 1,1,1,1 },
+                text_alignment(DWRITE_TEXT_ALIGNMENT_CENTER),
+                special_font_ranges({}),
+                custom_font_filepaths({})
+            {}
 
             std::wstring                                              default_font_name;
             float                                                     font_size;
+            std::array<float, 4>                                      foreground;
+            std::array<float, 4>                                      background;
+            DWRITE_TEXT_ALIGNMENT                                     text_alignment;
             std::vector<std::tuple<std::wstring, uint32_t, uint32_t>> special_font_ranges;
             std::vector<std::wstring>                                 custom_font_filepaths;
         };
@@ -255,8 +267,8 @@ namespace EngineCore
                 typedef std::pair<std::string, dxowl::ShaderProgram::ShaderType> ShaderFilename;
                 ResourceID createShaderProgramAsync(
                     std::string const& name,
-                    std::shared_ptr<std::vector<ShaderFilename>> const& shader_filenames,
-                    std::shared_ptr<std::vector<dxowl::VertexDescriptor>> const& vertex_layout);
+                    std::shared_ptr<std::vector<ShaderFilename>> shader_filenames,
+                    std::shared_ptr<std::vector<dxowl::VertexDescriptor>> vertex_layout);
 
                 typedef std::tuple<const void*, size_t, dxowl::ShaderProgram::ShaderType> ShaderData;
                 ResourceID createShaderProgram(
@@ -494,8 +506,6 @@ namespace EngineCore
                     std::string const& name,
                     std::wstring const& text,
                     FontInfo const& font_info,
-                    std::array<float, 4> text_color,
-                    std::array<float, 4> bckgrnd_color,
                     D3D11_TEXTURE2D_DESC const& desc,
                     bool generate_mipmap);
     #pragma endregion

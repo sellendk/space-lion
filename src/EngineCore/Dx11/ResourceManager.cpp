@@ -344,8 +344,8 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::allocateMeshAsync(
 //std::future<ResourceID> ResourceManager::createShaderProgramAsync(
 ResourceID ResourceManager::createShaderProgramAsync(
     std::string const & name, 
-    std::shared_ptr<std::vector<ResourceManager::ShaderFilename>> const& shader_filenames,
-    std::shared_ptr<std::vector<dxowl::VertexDescriptor>> const& vertex_layout)
+    std::shared_ptr<std::vector<ResourceManager::ShaderFilename>> shader_filenames,
+    std::shared_ptr<std::vector<dxowl::VertexDescriptor>> vertex_layout)
 {
     {
         std::shared_lock<std::shared_mutex> shader_lock(m_shader_programs_mutex);
@@ -371,21 +371,15 @@ ResourceID ResourceManager::createShaderProgramAsync(
         m_id_to_shader_program_idx.insert(std::pair<unsigned int, size_t>(m_shader_programs.back().id.value(), idx));
     }
 
-    auto& rsrc_mngr_ref = *this;
+    auto rsrc_mngr_ptr = this;
 
     //co_await std::async([&rsrc_mngr_ref, idx, shader_filenames, vertex_layout]() ->std::future <void> {
-    std::async([&rsrc_mngr_ref, idx, shader_filenames, vertex_layout]() {
-
-        auto& cached_rsrc_mngr_ref = rsrc_mngr_ref;
-        auto cached_idx = idx;
-        auto cached_shader_filenames = shader_filenames;
-        auto cached_vertex_layout = vertex_layout;
-
+    std::async([rsrc_mngr_ptr, idx, shader_filenames, vertex_layout]() {
         std::vector<byte> vertex_shader;
         std::vector<byte> geometry_shader;
         std::vector<byte> pixel_shader;
 
-        for (auto& shader_filename : *cached_shader_filenames)
+        for (auto& shader_filename : *shader_filenames)
         {
             switch (shader_filename.second)
             {
@@ -405,16 +399,16 @@ ResourceID ResourceManager::createShaderProgramAsync(
                 break;
             }
         }
-        std::unique_lock<std::shared_mutex> shader_lock(cached_rsrc_mngr_ref.m_shader_programs_mutex);
+        std::unique_lock<std::shared_mutex> shader_lock(rsrc_mngr_ptr->m_shader_programs_mutex);
 
-        cached_rsrc_mngr_ref.m_shader_programs[cached_idx].resource = std::make_unique<dxowl::ShaderProgram>(
-            cached_rsrc_mngr_ref.getD3D11Device(),
-            *cached_vertex_layout,
+        rsrc_mngr_ptr->m_shader_programs[idx].resource = std::make_unique<dxowl::ShaderProgram>(
+            rsrc_mngr_ptr->getD3D11Device(),
+            *vertex_layout,
             vertex_shader,
             geometry_shader,
             pixel_shader);
 
-        cached_rsrc_mngr_ref.m_shader_programs[cached_idx].state = READY;
+        rsrc_mngr_ptr->m_shader_programs[idx].state = READY;
     });
 
     //co_return m_shader_programs.back().id;
@@ -490,8 +484,6 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
     std::string const& name,
     std::wstring const& text,
     FontInfo const& font_info,
-    std::array<float, 4> text_color,
-    std::array<float, 4> bckgrnd_color,
     D3D11_TEXTURE2D_DESC const& desc,
     bool generate_mipmap)
 {
@@ -504,7 +496,7 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
     addTextureIndex(rsrc_id.value(), name, idx);
 
     m_renderThread_tasks.push(
-        [this, idx, text, text_color, bckgrnd_color, desc, generate_mipmap, font_info]() {
+        [this, idx, text, desc, generate_mipmap, font_info]() {
 
             std::vector<const void*> data_ptrs;
 
@@ -524,8 +516,9 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
             TextTextureInfo text_info(desc.Width, desc.Height);
             text_info.FontName = font_info.default_font_name.c_str();
             text_info.FontSize = font_info.font_size;
-            text_info.Foreground = text_color;
-            text_info.Background = bckgrnd_color;
+            text_info.Foreground = font_info.foreground;
+            text_info.Background = font_info.background;
+            text_info.TextAlignment = font_info.text_alignment;
             text_info.SpecialFontRanges = font_info.special_font_ranges;
             text_info.CustomFontFilepaths = font_info.custom_font_filepaths;
             std::unique_ptr<TextTexture> text_to_texture
