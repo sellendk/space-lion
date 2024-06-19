@@ -508,6 +508,19 @@ namespace EngineCore
                     FontInfo const& font_info,
                     D3D11_TEXTURE2D_DESC const& desc,
                     bool generate_mipmap);
+
+                void updateTextTexture2D(
+                    ResourceID rsrc_id,
+                    std::wstring const& text,
+                    FontInfo const& font_info
+                );
+
+                void updateTextTexture2DAsync(
+                    ResourceID rsrc_id,
+                    std::wstring const& text,
+                    FontInfo const& font_info
+                );
+
     #pragma endregion
 
     #pragma region Create Render Targets

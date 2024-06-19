@@ -546,3 +546,52 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
 
     return m_textures_2d[idx].id;
 }
+
+void EngineCore::Graphics::Dx11::ResourceManager::updateTextTexture2D(
+    ResourceID rsrc_id,
+    std::wstring const& text,
+    FontInfo const& font_info)
+{
+    WeakResource<dxowl::Texture2D> texture = getTexture2DResource(rsrc_id);
+
+    if (texture.state == READY) {
+        auto desc = texture.resource->getTextureDesc();
+
+        TextTextureInfo text_info(desc.Width, desc.Height);
+        text_info.FontName = font_info.default_font_name.c_str();
+        text_info.FontSize = font_info.font_size;
+        text_info.Foreground = font_info.foreground;
+        text_info.Background = font_info.background;
+        text_info.TextAlignment = font_info.text_alignment;
+        text_info.SpecialFontRanges = font_info.special_font_ranges;
+        text_info.CustomFontFilepaths = font_info.custom_font_filepaths;
+        std::unique_ptr<TextTexture> text_to_texture
+            = std::make_unique<TextTexture>(m_d3d11_device, m_d3d11_device_context, text_info, text);
+
+        // copy rendered text texture
+        {
+            D3D11_BOX src_region;
+            src_region.left = 0;
+            src_region.right = desc.Width;
+            src_region.top = 0;
+            src_region.bottom = desc.Height;
+            src_region.front = 0;
+            src_region.back = 1;
+
+            ID3D11Resource* src_rsrc = text_to_texture->Texture();
+            ID3D11Resource* dest_rsrc;
+            texture.resource->getShaderResourceView()->GetResource(&dest_rsrc);
+            m_d3d11_device_context->CopySubresourceRegion(dest_rsrc, 0, 0, 0, 0, src_rsrc, 0, &src_region);
+        }
+    }
+}
+
+void EngineCore::Graphics::Dx11::ResourceManager::updateTextTexture2DAsync(ResourceID rsrc_id, std::wstring const& text, FontInfo const& font_info)
+{
+
+    m_renderThread_tasks.push(
+        [this, rsrc_id, text, font_info]() {
+            updateTextTexture2D(rsrc_id, text, font_info);
+        }
+    );
+}
