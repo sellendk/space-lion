@@ -7,10 +7,6 @@
 #include <filesystem>
 #include <fstream>
 
-#include <dxgi.h>
-#include <d2d1_2.h>
-#include <dwrite_3.h>
-
 #include "ResourceLoading.hpp"
 
 using namespace EngineCore::Graphics;
@@ -116,54 +112,21 @@ namespace {
     class TextTexture {
     public:
         inline TextTexture(
-            ID3D11Device4* d3d11_device,
-            ID3D11DeviceContext4* d3d11_device_context,
-            TextTextureInfo textInfo,
-            std::wstring const& text)
+            ID3D11Device4*          d3d11_device,
+            ID2D1Factory2*          d2d_factory,
+            ID2D1Device1*           d2d_device,
+            ID2D1DeviceContext1*    d2d_context,
+            IDWriteFactory5*        dwrite_factory,
+            IDWriteFontCollection1* custom_font_collection,
+            TextTextureInfo         textInfo,
+            std::wstring const&     text)
             : m_textInfo(std::move(textInfo))
         {
-            D2D1_FACTORY_OPTIONS options{};
-            
-            winrt::check_hresult(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, winrt::guid_of<ID2D1Factory2>(), &options, m_d2dFactory.put_void()));
-            winrt::check_hresult(DWriteCreateFactory(
-                DWRITE_FACTORY_TYPE_SHARED, winrt::guid_of<IDWriteFactory5>(), reinterpret_cast<IUnknown**>(m_dwriteFactory.put_void())));
-
-            winrt::com_ptr <IDWriteFontCollection> system_font_collection;
-            m_dwriteFactory->GetSystemFontCollection(system_font_collection.put());
-
-            // see https://learn.microsoft.com/en-us/windows/win32/directwrite/custom-font-sets-win10#creating-a-font-set-using-arbitrary-fonts-in-the-local-file-system
-            winrt::com_ptr <IDWriteFontSetBuilder1> font_set_builder;
-            winrt::check_hresult(m_dwriteFactory->CreateFontSetBuilder(font_set_builder.put()));
-
-            for (auto const& font_filepath : m_textInfo.CustomFontFilepaths)
-            {
-                    winrt::com_ptr <IDWriteFontFile> pFontFile;
-                    winrt::check_hresult(m_dwriteFactory->CreateFontFileReference(font_filepath.c_str(), /* lastWriteTime*/ nullptr, pFontFile.put()));
-                    winrt::check_hresult(font_set_builder->AddFontFile(pFontFile.get()));
-            }
-
-            // get and add system font sets to font builder
-            winrt::com_ptr <IDWriteFontSet> system_font_set;
-            winrt::check_hresult(m_dwriteFactory->GetSystemFontSet(system_font_set.put()));
-            font_set_builder->AddFontSet(system_font_set.get());
-
-            // build final font set
-            winrt::com_ptr <IDWriteFontSet> font_set;
-            winrt::check_hresult(font_set_builder->CreateFontSet(font_set.put()));
-
-            winrt::com_ptr <IDWriteFontCollection1> custom_font_collection;
-            winrt::check_hresult(m_dwriteFactory->CreateFontCollectionFromFontSet(font_set.get(), custom_font_collection.put()));
-
-            IDXGIDevice* pDXGIDevice;
-            auto hr = d3d11_device->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice);
-            winrt::check_hresult(m_d2dFactory->CreateDevice(pDXGIDevice, m_d2dDevice.put()));
-            winrt::check_hresult(m_d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, m_d2dContext.put()));
-
             //
             // Create text format.
             //
-            winrt::check_hresult(m_dwriteFactory->CreateTextFormat(m_textInfo.FontName,
-                custom_font_collection.get(),
+            winrt::check_hresult(dwrite_factory->CreateTextFormat(m_textInfo.FontName,
+                custom_font_collection,
                 DWRITE_FONT_WEIGHT_NORMAL,
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
@@ -178,7 +141,7 @@ namespace {
             //
             auto wszText_ = text.c_str();
             auto cTextLength_ = (UINT32)wcslen(wszText_);
-            winrt::check_hresult(m_dwriteFactory->CreateTextLayout(wszText_,
+            winrt::check_hresult(dwrite_factory->CreateTextLayout(wszText_,
                 cTextLength_,
                 m_textFormat.get(),
                 m_textInfo.Width,
@@ -195,7 +158,7 @@ namespace {
                 m_textLayout->SetFontFamilyName(font, range);
             }
 
-            winrt::check_hresult(m_d2dFactory->CreateDrawingStateBlock(m_stateBlock.put()));
+            winrt::check_hresult(d2d_factory->CreateDrawingStateBlock(m_stateBlock.put()));
 
             //
             // Set up 2D rendering modes.
@@ -217,37 +180,37 @@ namespace {
             winrt::check_hresult(d3d11_device->CreateTexture2D(&texDesc, nullptr, m_textDWriteTexture.put()));
 
             winrt::com_ptr<IDXGISurface> dxgiPerfBuffer = m_textDWriteTexture.as<IDXGISurface>();
-            winrt::check_hresult(m_d2dContext->CreateBitmapFromDxgiSurface(dxgiPerfBuffer.get(), &bitmapProperties, m_d2dTargetBitmap.put()));
+            winrt::check_hresult(d2d_context->CreateBitmapFromDxgiSurface(dxgiPerfBuffer.get(), &bitmapProperties, m_d2dTargetBitmap.put()));
 
-            m_d2dContext->SetTarget(m_d2dTargetBitmap.get());
-            m_d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
-            m_d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());
+            d2d_context->SetTarget(m_d2dTargetBitmap.get());
+            d2d_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            d2d_context->SetTransform(D2D1::Matrix3x2F::Identity());
 
             const auto& foreground = m_textInfo.Foreground;
             const D2D1::ColorF brushColor(std::get<0>(foreground), std::get<1>(foreground), std::get<2>(foreground), std::get<3>(foreground));
-            winrt::check_hresult(m_d2dContext->CreateSolidColorBrush(brushColor, m_brush.put()));
+            winrt::check_hresult(d2d_context->CreateSolidColorBrush(brushColor, m_brush.put()));
 
             //
             // Draw to texture
             //
-            m_d2dContext->SaveDrawingState(m_stateBlock.get());
+            d2d_context->SaveDrawingState(m_stateBlock.get());
 
-            const D2D1_SIZE_F renderTargetSize = m_d2dContext->GetSize();
-            m_d2dContext->BeginDraw();
+            const D2D1_SIZE_F renderTargetSize = d2d_context->GetSize();
+            d2d_context->BeginDraw();
 
             const auto& background = m_textInfo.Background;
-            m_d2dContext->Clear(D2D1::ColorF(std::get<0>(background), std::get<1>(background), std::get<2>(background), std::get<3>(background)));
+            d2d_context->Clear(D2D1::ColorF(std::get<0>(background), std::get<1>(background), std::get<2>(background), std::get<3>(background)));
 
             if (!text.empty()) {
-                m_d2dContext->DrawTextLayout(
+                d2d_context->DrawTextLayout(
                     { 0.0, 0.0 },
                     m_textLayout.get(),
                     m_brush.get()
                 );
             }
 
-            m_d2dContext->EndDraw();
-            m_d2dContext->RestoreDrawingState(m_stateBlock.get());
+            d2d_context->EndDraw();
+            d2d_context->RestoreDrawingState(m_stateBlock.get());
         }
 
         ID3D11Texture2D* Texture() const
@@ -257,13 +220,9 @@ namespace {
 
     private:
         const TextTextureInfo m_textInfo;
-        winrt::com_ptr<ID2D1Factory2> m_d2dFactory;
-        winrt::com_ptr<ID2D1Device1> m_d2dDevice;
-        winrt::com_ptr<ID2D1DeviceContext1> m_d2dContext;
         winrt::com_ptr<ID2D1Bitmap1> m_d2dTargetBitmap;
         winrt::com_ptr<ID2D1SolidColorBrush> m_brush;
         winrt::com_ptr<ID2D1DrawingStateBlock> m_stateBlock;
-        winrt::com_ptr<IDWriteFactory5> m_dwriteFactory;
         winrt::com_ptr<IDWriteTextFormat> m_textFormat;
         winrt::com_ptr<IDWriteTextLayout> m_textLayout;
         winrt::com_ptr<ID3D11Texture2D> m_textDWriteTexture;
@@ -272,9 +231,59 @@ namespace {
 }
 
 EngineCore::Graphics::Dx11::ResourceManager::ResourceManager()
-    : m_d3d11_device(nullptr), m_d3d11_device_context(nullptr)
+    : m_d3d11_device(nullptr), m_d3d11_device_context(nullptr), m_text_resources(nullptr)
 {
 }
+
+void EngineCore::Graphics::Dx11::ResourceManager::init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context)
+{
+    m_d3d11_device = d3d11_device;
+    m_d3d11_device_context = d3d11_device_context;
+
+    {
+        m_text_resources = std::make_unique<TextResources>();
+
+        D2D1_FACTORY_OPTIONS options{};
+
+        winrt::check_hresult(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, winrt::guid_of<ID2D1Factory2>(), &options, m_text_resources->m_d2d_factory.put_void()));
+        winrt::check_hresult(DWriteCreateFactory(
+            DWRITE_FACTORY_TYPE_SHARED, winrt::guid_of<IDWriteFactory5>(), reinterpret_cast<IUnknown**>(m_text_resources->m_dwrite_factory.put_void())));
+
+        winrt::com_ptr <IDWriteFontCollection> system_font_collection;
+        m_text_resources->m_dwrite_factory->GetSystemFontCollection(system_font_collection.put());
+
+        // see https://learn.microsoft.com/en-us/windows/win32/directwrite/custom-font-sets-win10#creating-a-font-set-using-arbitrary-fonts-in-the-local-file-system
+        winrt::com_ptr <IDWriteFontSetBuilder1> font_set_builder;
+        winrt::check_hresult(m_text_resources->m_dwrite_factory->CreateFontSetBuilder(font_set_builder.put()));
+
+        std::vector<std::wstring> custom_font_filepaths = { utf8_to_wide(EngineCore::Utility::GetAppFolder().string() + "Resources/TheiaIcons.ttf") };
+
+        for (auto const& font_filepath : custom_font_filepaths)
+        {
+            winrt::com_ptr <IDWriteFontFile> pFontFile;
+            winrt::check_hresult(m_text_resources->m_dwrite_factory->CreateFontFileReference(font_filepath.c_str(), /* lastWriteTime*/ nullptr, pFontFile.put()));
+            winrt::check_hresult(font_set_builder->AddFontFile(pFontFile.get()));
+        }
+
+        // get and add system font sets to font builder
+        winrt::com_ptr <IDWriteFontSet> system_font_set;
+        winrt::check_hresult(m_text_resources->m_dwrite_factory->GetSystemFontSet(system_font_set.put()));
+        font_set_builder->AddFontSet(system_font_set.get());
+
+        // build final font set
+        winrt::com_ptr <IDWriteFontSet> font_set;
+        winrt::check_hresult(font_set_builder->CreateFontSet(font_set.put()));
+
+        //winrt::com_ptr <IDWriteFontCollection1> custom_font_collection;
+        winrt::check_hresult(m_text_resources->m_dwrite_factory->CreateFontCollectionFromFontSet(font_set.get(), m_text_resources->m_custom_font_collection.put()));
+
+        IDXGIDevice* pDXGIDevice;
+        auto hr = d3d11_device->QueryInterface(__uuidof(IDXGIDevice), (void**)&pDXGIDevice);
+        winrt::check_hresult(m_text_resources->m_d2d_factory->CreateDevice(pDXGIDevice, m_text_resources->m_d2d_device.put()));
+        winrt::check_hresult(m_text_resources->m_d2d_device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, m_text_resources->m_d2d_context.put()));
+    }
+}
+
 
 void EngineCore::Graphics::Dx11::ResourceManager::clearAllResources()
 {
@@ -522,7 +531,15 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
             text_info.SpecialFontRanges = font_info.special_font_ranges;
             text_info.CustomFontFilepaths = font_info.custom_font_filepaths;
             std::unique_ptr<TextTexture> text_to_texture
-                = std::make_unique<TextTexture>(m_d3d11_device, m_d3d11_device_context, text_info, text);
+                = std::make_unique<TextTexture>(
+                    m_d3d11_device,
+                    m_text_resources->m_d2d_factory.get(),
+                    m_text_resources->m_d2d_device.get(),
+                    m_text_resources->m_d2d_context.get(),
+                    m_text_resources->m_dwrite_factory.get(),
+                    m_text_resources->m_custom_font_collection.get(),
+                    text_info,
+                    text);
 
             // copy rendered text texture
             {
@@ -566,7 +583,15 @@ void EngineCore::Graphics::Dx11::ResourceManager::updateTextTexture2D(
         text_info.SpecialFontRanges = font_info.special_font_ranges;
         text_info.CustomFontFilepaths = font_info.custom_font_filepaths;
         std::unique_ptr<TextTexture> text_to_texture
-            = std::make_unique<TextTexture>(m_d3d11_device, m_d3d11_device_context, text_info, text);
+            = std::make_unique<TextTexture>(
+                m_d3d11_device,
+                m_text_resources->m_d2d_factory.get(),
+                m_text_resources->m_d2d_device.get(),
+                m_text_resources->m_d2d_context.get(),
+                m_text_resources->m_dwrite_factory.get(),
+                m_text_resources->m_custom_font_collection.get(),
+                text_info,
+                text);
 
         // copy rendered text texture
         {
@@ -577,7 +602,7 @@ void EngineCore::Graphics::Dx11::ResourceManager::updateTextTexture2D(
             src_region.bottom = desc.Height;
             src_region.front = 0;
             src_region.back = 1;
-
+        
             ID3D11Resource* src_rsrc = text_to_texture->Texture();
             ID3D11Resource* dest_rsrc;
             texture.resource->getShaderResourceView()->GetResource(&dest_rsrc);

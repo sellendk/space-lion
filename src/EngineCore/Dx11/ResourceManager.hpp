@@ -20,6 +20,9 @@
 
 #include <d3d11_4.h>
 #include <dwrite.h>
+#include <dxgi.h>
+#include <d2d1_2.h>
+#include <dwrite_3.h>
 
 #include <future>
 
@@ -61,11 +64,8 @@ namespace EngineCore
                 ResourceManager();
                 ~ResourceManager() = default;
 
-                void init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context) {
-                    m_d3d11_device = d3d11_device;
-                    m_d3d11_device_context = d3d11_device_context;
-                }
-    
+                void init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context);
+
                 void clearAllResources();
 
                 ID3D11Device4* getD3D11Device() { return m_d3d11_device; }
@@ -553,6 +553,17 @@ namespace EngineCore
                 std::unordered_map<std::string, size_t>    m_name_to_renderTarget_idx;
 
                 mutable std::shared_mutex m_renderTargets_mutex;
+
+                struct TextResources {
+                    winrt::com_ptr<ID2D1Factory2>           m_d2d_factory;
+                    winrt::com_ptr<ID2D1Device1>            m_d2d_device;
+                    winrt::com_ptr<ID2D1DeviceContext1>     m_d2d_context;
+                    winrt::com_ptr<IDWriteFactory5>         m_dwrite_factory;
+
+                    winrt::com_ptr <IDWriteFontCollection1> m_custom_font_collection;
+                };
+
+                std::unique_ptr<TextResources> m_text_resources;
             
             };
 
