@@ -228,6 +228,101 @@ namespace {
         winrt::com_ptr<ID3D11Texture2D> m_textDWriteTexture;
     };
 
+    void renderText(
+        ID3D11Device4*          d3d11_device,
+        ID2D1Factory2*          d2d_factory,
+        ID2D1Device1*           d2d_device,
+        ID2D1DeviceContext1*    d2d_context,
+        IDWriteFactory5*        dwrite_factory,
+        IDWriteFontCollection1* custom_font_collection,
+        TextTextureInfo         textInfo,
+        std::wstring const&     text,
+        ID3D11Texture2D*        target_texture)
+    {
+        //
+        // Create text format.
+        //
+        winrt::com_ptr<IDWriteTextFormat> textFormat;
+        winrt::check_hresult(dwrite_factory->CreateTextFormat(textInfo.FontName,
+            custom_font_collection,
+            DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            textInfo.FontSize,
+            L"en-US",
+            textFormat.put()));
+        winrt::check_hresult(textFormat->SetTextAlignment(textInfo.TextAlignment));
+        winrt::check_hresult(textFormat->SetParagraphAlignment(textInfo.ParagraphAlignment));
+
+        //
+        // Create text layout
+        //
+        winrt::com_ptr<IDWriteTextLayout> textLayout;
+        auto wszText_ = text.c_str();
+        auto cTextLength_ = (UINT32)wcslen(wszText_);
+        winrt::check_hresult(dwrite_factory->CreateTextLayout(wszText_,
+            cTextLength_,
+            textFormat.get(),
+            textInfo.Width,
+            textInfo.Height,
+            textLayout.put()));
+
+        for (auto const& font_range : textInfo.SpecialFontRanges)
+        {
+            DWRITE_TEXT_RANGE range;
+            range.startPosition = std::get<1>(font_range);
+            range.length = std::get<2>(font_range);
+            WCHAR const* font = std::get<0>(font_range).c_str();
+
+            textLayout->SetFontFamilyName(font, range);
+        }
+
+        winrt::com_ptr<ID2D1DrawingStateBlock> stateBlock;
+        winrt::check_hresult(d2d_factory->CreateDrawingStateBlock(stateBlock.put()));
+
+        //
+        // Set up 2D rendering modes.
+        //
+        const D2D1_BITMAP_PROPERTIES1 bitmapProperties = D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+            D2D1::PixelFormat(textInfo.TextFormat, D2D1_ALPHA_MODE_PREMULTIPLIED));
+
+        IDXGISurface* dxgiPerfBuffer;
+        auto hr = target_texture->QueryInterface(__uuidof(IDXGISurface), (void**)&dxgiPerfBuffer);
+
+        winrt::com_ptr<ID2D1Bitmap1> d2dTargetBitmap;
+        winrt::check_hresult(d2d_context->CreateBitmapFromDxgiSurface(dxgiPerfBuffer, &bitmapProperties, d2dTargetBitmap.put()));
+
+        d2d_context->SetTarget(d2dTargetBitmap.get());
+        d2d_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        d2d_context->SetTransform(D2D1::Matrix3x2F::Identity());
+
+        winrt::com_ptr<ID2D1SolidColorBrush> brush;
+        const auto& foreground = textInfo.Foreground;
+        const D2D1::ColorF brushColor(std::get<0>(foreground), std::get<1>(foreground), std::get<2>(foreground), std::get<3>(foreground));
+        winrt::check_hresult(d2d_context->CreateSolidColorBrush(brushColor, brush.put()));
+
+        //
+        // Draw to texture
+        //
+        d2d_context->SaveDrawingState(stateBlock.get());
+
+        const D2D1_SIZE_F renderTargetSize = d2d_context->GetSize();
+        d2d_context->BeginDraw();
+
+        const auto& background = textInfo.Background;
+        d2d_context->Clear(D2D1::ColorF(std::get<0>(background), std::get<1>(background), std::get<2>(background), std::get<3>(background)));
+
+        if (!text.empty()) {
+            d2d_context->DrawTextLayout(
+                { 0.0, 0.0 },
+                textLayout.get(),
+                brush.get()
+            );
+        }
+
+        d2d_context->EndDraw();
+        d2d_context->RestoreDrawingState(stateBlock.get());
+    }
 }
 
 EngineCore::Graphics::Dx11::ResourceManager::ResourceManager()
@@ -530,32 +625,42 @@ ResourceID EngineCore::Graphics::Dx11::ResourceManager::createTextTexture2DAsync
             text_info.TextAlignment = font_info.text_alignment;
             text_info.SpecialFontRanges = font_info.special_font_ranges;
             text_info.CustomFontFilepaths = font_info.custom_font_filepaths;
-            std::unique_ptr<TextTexture> text_to_texture
-                = std::make_unique<TextTexture>(
-                    m_d3d11_device,
-                    m_text_resources->m_d2d_factory.get(),
-                    m_text_resources->m_d2d_device.get(),
-                    m_text_resources->m_d2d_context.get(),
-                    m_text_resources->m_dwrite_factory.get(),
-                    m_text_resources->m_custom_font_collection.get(),
-                    text_info,
-                    text);
-
-            // copy rendered text texture
-            {
-                D3D11_BOX src_region;
-                src_region.left = 0;
-                src_region.right = desc.Width;
-                src_region.top = 0;
-                src_region.bottom = desc.Height;
-                src_region.front = 0;
-                src_region.back = 1;
-
-                ID3D11Resource* src_rsrc = text_to_texture->Texture();
-                ID3D11Resource* dest_rsrc;
-                this->m_textures_2d[idx].resource->getShaderResourceView()->GetResource(&dest_rsrc);
-                m_d3d11_device_context->CopySubresourceRegion(dest_rsrc, 0, 0, 0, 0, src_rsrc, 0, &src_region);
-            }
+            //  std::unique_ptr<TextTexture> text_to_texture
+            //      = std::make_unique<TextTexture>(
+            //          m_d3d11_device,
+            //          m_text_resources->m_d2d_factory.get(),
+            //          m_text_resources->m_d2d_device.get(),
+            //          m_text_resources->m_d2d_context.get(),
+            //          m_text_resources->m_dwrite_factory.get(),
+            //          m_text_resources->m_custom_font_collection.get(),
+            //          text_info,
+            //          text);
+            //  
+            //  // copy rendered text texture
+            //  {
+            //      D3D11_BOX src_region;
+            //      src_region.left = 0;
+            //      src_region.right = desc.Width;
+            //      src_region.top = 0;
+            //      src_region.bottom = desc.Height;
+            //      src_region.front = 0;
+            //      src_region.back = 1;
+            //  
+            //      ID3D11Resource* src_rsrc = text_to_texture->Texture();
+            //      ID3D11Resource* dest_rsrc;
+            //      this->m_textures_2d[idx].resource->getShaderResourceView()->GetResource(&dest_rsrc);
+            //      m_d3d11_device_context->CopySubresourceRegion(dest_rsrc, 0, 0, 0, 0, src_rsrc, 0, &src_region);
+            //  }
+            renderText(
+                m_d3d11_device,
+                m_text_resources->m_d2d_factory.get(),
+                m_text_resources->m_d2d_device.get(),
+                m_text_resources->m_d2d_context.get(),
+                m_text_resources->m_dwrite_factory.get(),
+                m_text_resources->m_custom_font_collection.get(),
+                text_info,
+                text,
+                this->m_textures_2d[idx].resource->getTexture().Get());
 
             this->m_textures_2d[idx].state = READY;
         }
@@ -582,32 +687,42 @@ void EngineCore::Graphics::Dx11::ResourceManager::updateTextTexture2D(
         text_info.TextAlignment = font_info.text_alignment;
         text_info.SpecialFontRanges = font_info.special_font_ranges;
         text_info.CustomFontFilepaths = font_info.custom_font_filepaths;
-        std::unique_ptr<TextTexture> text_to_texture
-            = std::make_unique<TextTexture>(
-                m_d3d11_device,
-                m_text_resources->m_d2d_factory.get(),
-                m_text_resources->m_d2d_device.get(),
-                m_text_resources->m_d2d_context.get(),
-                m_text_resources->m_dwrite_factory.get(),
-                m_text_resources->m_custom_font_collection.get(),
-                text_info,
-                text);
-
-        // copy rendered text texture
-        {
-            D3D11_BOX src_region;
-            src_region.left = 0;
-            src_region.right = desc.Width;
-            src_region.top = 0;
-            src_region.bottom = desc.Height;
-            src_region.front = 0;
-            src_region.back = 1;
-        
-            ID3D11Resource* src_rsrc = text_to_texture->Texture();
-            ID3D11Resource* dest_rsrc;
-            texture.resource->getShaderResourceView()->GetResource(&dest_rsrc);
-            m_d3d11_device_context->CopySubresourceRegion(dest_rsrc, 0, 0, 0, 0, src_rsrc, 0, &src_region);
-        }
+        //std::unique_ptr<TextTexture> text_to_texture
+        //    = std::make_unique<TextTexture>(
+        //        m_d3d11_device,
+        //        m_text_resources->m_d2d_factory.get(),
+        //        m_text_resources->m_d2d_device.get(),
+        //        m_text_resources->m_d2d_context.get(),
+        //        m_text_resources->m_dwrite_factory.get(),
+        //        m_text_resources->m_custom_font_collection.get(),
+        //        text_info,
+        //        text);
+        //
+        //// copy rendered text texture
+        //{
+        //    D3D11_BOX src_region;
+        //    src_region.left = 0;
+        //    src_region.right = desc.Width;
+        //    src_region.top = 0;
+        //    src_region.bottom = desc.Height;
+        //    src_region.front = 0;
+        //    src_region.back = 1;
+        //
+        //    ID3D11Resource* src_rsrc = text_to_texture->Texture();
+        //    ID3D11Resource* dest_rsrc;
+        //    texture.resource->getShaderResourceView()->GetResource(&dest_rsrc);
+        //    m_d3d11_device_context->CopySubresourceRegion(dest_rsrc, 0, 0, 0, 0, src_rsrc, 0, &src_region);
+        //}
+        renderText(
+            m_d3d11_device,
+            m_text_resources->m_d2d_factory.get(),
+            m_text_resources->m_d2d_device.get(),
+            m_text_resources->m_d2d_context.get(),
+            m_text_resources->m_dwrite_factory.get(),
+            m_text_resources->m_custom_font_collection.get(),
+            text_info,
+            text,
+            texture.resource->getTexture().Get());
     }
 }
 
