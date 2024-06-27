@@ -62,6 +62,7 @@ SET (ENGINECORE_COMMON_HEADER_FILES
         src/EngineCore/NameComponentManager.hpp
         src/EngineCore/ProximityTriggerComponentManager.hpp
         src/EngineCore/TransformComponentManager.hpp
+        src/EngineCore/TriggerSystems.hpp
         src/EngineCore/WorldState.hpp)
 
 SET (ENGINECORE_COMMON_SOURCE_FILES
@@ -71,6 +72,7 @@ SET (ENGINECORE_COMMON_SOURCE_FILES
         src/EngineCore/NameComponentManager.cpp
         src/EngineCore/ProximityTriggerComponentManager.cpp
         src/EngineCore/TransformComponentManager.cpp
+        src/EngineCore/TriggerSystems.cpp
         src/EngineCore/WorldState.cpp)
 
 SET (ENGINECORE_GRAPHICS_HEADER_FILES

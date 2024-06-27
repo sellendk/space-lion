@@ -29,11 +29,17 @@ namespace EngineCore
             ProximityTriggerComponentManager() = default;
             ~ProximityTriggerComponentManager() = default;
 
-            inline size_t addComponent(Entity entity, Entity target, float trigger_distance, std::function<void()> enter_callback, std::function<void()> leave_callback);
+            size_t addComponent(Entity entity, Entity target, float trigger_distance, std::function<void()> enter_callback, std::function<void()> leave_callback);
 
             void deleteComponent(Entity entity);
 
             size_t getComponentCount() const;
+
+            bool checkComponent(size_t index);
+
+            Data const& getComponent(size_t index) const;
+
+            Data& getComponent(size_t index);
         };
 
     }
