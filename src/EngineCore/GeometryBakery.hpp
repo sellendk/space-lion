@@ -32,6 +32,11 @@ namespace EngineCore
         };
 
         /**
+        *\brief Creates and return triangle geometry
+        */
+        std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr> createPoint();
+
+        /**
         * \brief Creates and return triangle geometry
         */
         std::tuple<VertexData, IndexData, VertexDataDescriptor> createTriangle();
@@ -43,6 +48,27 @@ namespace EngineCore
             float width,
             float height,
             int attribute_bit_mask,
+            bool z_up = false);
+
+        /**
+        * \brief Creates and return box plot (5 quads) geometry
+        * CURRENTLY THIS ONLY WORKS FOR POSITION ATTRIBUTE
+        */
+        std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr> createBoxPlot(
+            float width,
+            float height,
+            int attribute_bit_mask,
+            const std::vector<float>& marker,
+            bool z_up = false);
+
+        /**
+        * \brief Creates and adds plane (quad) geometry to already existing geometry
+        */
+        void addPlane(
+            float width,
+            float height,
+            int attribute_bit_mask,
+            std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr>& geom,
             bool z_up = false);
 
         /**
