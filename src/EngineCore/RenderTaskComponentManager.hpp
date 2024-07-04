@@ -69,28 +69,6 @@ namespace EngineCore
                     cached_material_idx(cached_material_idx)
                 {}
 
-                Data(Entity entity,
-                    ResourceID mesh,
-                    size_t mesh_component_subidx,
-                    ResourceID shader_prgm,
-                    size_t mtl_component_subidx,
-                    bool visible,
-                    size_t cached_transform_idx,
-                    size_t cached_mesh_idx,
-                    size_t cached_material_idx,
-                    Entity sensor)
-                    : entity(entity),
-                    mesh(mesh),
-                    mesh_component_subidx(mesh_component_subidx),
-                    shader_prgm(shader_prgm),
-                    mtl_component_subidx(mtl_component_subidx),
-                    visible(visible),
-                    cached_transform_idx(cached_transform_idx),
-                    cached_mesh_idx(cached_mesh_idx),
-                    cached_material_idx(cached_material_idx),
-                    sensor_entity(sensor)
-                {}
-
                 inline friend bool operator< (const Data& lhs, const Data& rhs) {
                     return (lhs.shader_prgm.value() == rhs.shader_prgm.value() ? lhs.mesh.value() < rhs.mesh.value() : lhs.shader_prgm.value() < rhs.shader_prgm.value());
                 }
@@ -105,8 +83,6 @@ namespace EngineCore
                 size_t     cached_transform_idx;
                 size_t     cached_mesh_idx;
                 size_t     cached_material_idx;
-
-                Entity     sensor_entity;
             };
 
             void addComponent(
@@ -118,8 +94,7 @@ namespace EngineCore
                 size_t cached_transform_idx,
                 size_t cached_mesh_idx,
                 size_t cached_material_idx,
-                bool visible = true,
-                Entity sensor = Entity());
+                bool visible = true);
 
             void setVisibility(Entity entity, bool visible);
 
@@ -146,8 +121,7 @@ namespace EngineCore
             size_t cached_transform_idx,
             size_t cached_mesh_idx,
             size_t cached_material_idx,
-            bool visible,
-            Entity sensor)
+            bool visible)
         {
             std::unique_lock<std::shared_mutex> lock(m_data_mutex);
 
@@ -162,8 +136,7 @@ namespace EngineCore
                 visible,
                 cached_transform_idx,
                 cached_mesh_idx,
-                cached_material_idx,
-                sensor)
+                cached_material_idx)
             );
 
             std::sort(m_data.begin(), m_data.end());

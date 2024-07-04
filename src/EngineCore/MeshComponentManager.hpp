@@ -272,19 +272,22 @@ namespace EngineCore
             std::shared_ptr<std::vector<VertexContainer>> const& vertex_data,
             std::shared_ptr<IndexContainer> const& index_data)
         {
-            auto entity_mesh_resource = getMeshResourceID(entity, 0);
+            auto entity_mesh_resource_id = getIndex(entity);
+            auto cd = m_component_data[entity_mesh_resource_id[0]];
 
-            auto it = m_mesh_data.begin();
-            while (it != m_mesh_data.end()) {
-                if (it->mesh_resource == entity_mesh_resource) break;
-                ++it;
-            }
+            //auto it = m_mesh_data.begin();
+            //while (it != m_mesh_data.end()) {
+            //    if (it->mesh_resource == entity_mesh_resource) break;
+            //    ++it;
+            //}
+
+            // TODO: size check
 
             // update mesh async
             m_resource_mngr->updateMeshAsync(
-                it->mesh_resource,
-                0,
-                0,
+                cd.mesh_resource,
+                cd.base_vertex,
+                cd.first_index,
                 vertex_data,
                 index_data);
         }
