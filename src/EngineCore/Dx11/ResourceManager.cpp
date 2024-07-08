@@ -330,7 +330,7 @@ EngineCore::Graphics::Dx11::ResourceManager::ResourceManager()
 {
 }
 
-void EngineCore::Graphics::Dx11::ResourceManager::init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context)
+void EngineCore::Graphics::Dx11::ResourceManager::init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context, std::vector<std::wstring> const& custom_font_filepaths)
 {
     m_d3d11_device = d3d11_device;
     m_d3d11_device_context = d3d11_device_context;
@@ -351,7 +351,7 @@ void EngineCore::Graphics::Dx11::ResourceManager::init(ID3D11Device4* d3d11_devi
         winrt::com_ptr <IDWriteFontSetBuilder1> font_set_builder;
         winrt::check_hresult(m_text_resources->m_dwrite_factory->CreateFontSetBuilder(font_set_builder.put()));
 
-        std::vector<std::wstring> custom_font_filepaths = { utf8_to_wide(EngineCore::Utility::GetAppFolder().string() + "Resources/TheiaIcons.ttf") };
+        //std::vector<std::wstring> custom_font_filepaths = { utf8_to_wide(EngineCore::Utility::GetAppFolder().string() + "Resources/TheiaIcons.ttf") };
 
         for (auto const& font_filepath : custom_font_filepaths)
         {

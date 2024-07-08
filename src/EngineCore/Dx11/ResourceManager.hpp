@@ -64,7 +64,7 @@ namespace EngineCore
                 ResourceManager();
                 ~ResourceManager() = default;
 
-                void init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context);
+                void init(ID3D11Device4* d3d11_device, ID3D11DeviceContext4* d3d11_device_context, std::vector<std::wstring> const& custom_font_filepaths = {});
 
                 void clearAllResources();
 
