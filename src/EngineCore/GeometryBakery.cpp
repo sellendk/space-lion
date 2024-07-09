@@ -6,9 +6,34 @@ namespace EngineCore
 {
     namespace Graphics
     {
+        std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr> createPoint()
+        {
+            struct Vec3
+            {
+                float x, y, z;
+            };
+
+            std::vector<uint8_t> position(sizeof(Vec3));
+            Vec3* position_ptr = reinterpret_cast<Vec3*>(position.data());
+
+            position_ptr[0].x = 0.f;
+            position_ptr[0].y = 0.f;
+            position_ptr[0].z = 0.f;
+
+            VertexDataPtr vertex_data = std::make_shared<std::vector<std::vector<uint8_t>>>();
+            vertex_data->push_back(position);
+
+            IndexDataPtr indices = std::make_shared<IndexData>(IndexData{ 0 });
+            
+            auto layout = std::make_shared<VertexDataDescriptor>();
+            layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3, 5126, false, 0) }));
+
+            return std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr>(vertex_data, indices, layout);
+        }
+
         std::tuple<VertexData, IndexData, VertexDataDescriptor> createTriangle()
         {
-            VertexData vertices(3 * 6 * 4); // 3 triangles * 6 float entries * bytesize
+            VertexData vertices(3 * 6 * 4); // 3 vertices * 6 float entries * bytesize
             IndexData indices(3);
 
             float* floatView = reinterpret_cast<float*>(vertices.data());
@@ -36,7 +61,7 @@ namespace EngineCore
             indices[0] = 0; indices[1] = 1; indices[2] = 2;
 
             VertexDataDescriptor layout(
-                { GenericVertexLayout(24 , { GenericVertexLayout::Attribute(3, 5126, false,0), GenericVertexLayout::Attribute(3, 5126, false, 12) }) }
+                { GenericVertexLayout(24 , { GenericVertexLayout::Attribute(3, 5126, false, 0), GenericVertexLayout::Attribute(3, 5126, false, 12) }) }
             );
 
             return std::tuple<VertexData, IndexData, VertexDataDescriptor>(vertices, indices, layout);
@@ -152,6 +177,268 @@ namespace EngineCore
             }
 
             return std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr>(vertex_data, indices, layout);
+        }
+
+        std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr> createBoxPlot(
+            float width,
+            float height,
+            int attribute_bit_mask,
+            const std::vector<float>& marker,
+            bool z_up)
+        {
+            struct Vec2
+            {
+                float u, v;
+            };
+
+            struct Vec3
+            {
+                float x, y, z;
+            };
+
+            struct Color
+            {
+                uint8_t r, g, b, a;
+            };
+
+
+            std::vector<uint8_t> position(20 * sizeof(Vec3));
+            std::vector<uint8_t> normal(20 * sizeof(Vec3));
+            std::vector<uint8_t> tangent(20 * sizeof(Vec3));
+            std::vector<uint8_t> color(20 * sizeof(Color));
+            std::vector<uint8_t> uv(20 * sizeof(Vec2));
+            std::vector<uint8_t> bitangent(20 * sizeof(Vec3));
+
+            Vec3* position_ptr = reinterpret_cast<Vec3*>(position.data());
+            Vec3* normal_ptr = reinterpret_cast<Vec3*>(normal.data());
+            Vec3* tangent_ptr = reinterpret_cast<Vec3*>(tangent.data());
+            Color* color_ptr = reinterpret_cast<Color*>(color.data());
+            Vec2* uv_ptr = reinterpret_cast<Vec2*>(uv.data());
+            Vec3* bitangent_ptr = reinterpret_cast<Vec3*>(bitangent.data());
+
+            std::array<float, 4> width_signs = { -1.0f,1.0f,1.0f,-1.0f };
+            std::array<float, 4> height_signs = { -1.0f,-1.0f,1.0f,1.0f };
+
+            // -------------
+            // |   Quad0   | --> q5/max
+            // -------------
+            //     |Qu |
+            //     |ad1|
+            //     |   |
+            // ------------- --> q3
+            // |           |
+            // |   Quad2   |
+            // |-----------| --> median/q2
+            // |           |
+            // |           |
+            // ------------- --> q1
+            //     |Qu |
+            //     |ad3|
+            //     |   |
+            // -------------
+            // |   Quad4   | --> q0/min
+            // -------------
+
+            float upper = 0.25f;
+            float lower = -0.25f;
+
+            if (marker.size() >= 5) {
+                upper = (marker[3] - marker[0]) / (marker[4] - marker[0]) - 0.5f;
+                lower = (marker[1] - marker[0]) / (marker[4] - marker[0]) - 0.5f;
+            }
+
+            // quad0
+            position_ptr[0]  = { -0.3f, 0.52f, 0.f };  position_ptr[1]  = { 0.3f, 0.52f, 0.f };
+            position_ptr[2]  = { -0.3f, 0.5f,  0.f };  position_ptr[3]  = { 0.3f, 0.5f,  0.f };
+
+            // quad1
+            position_ptr[4]  = { -0.01f, 0.5f,  0.f };  position_ptr[5]  = { 0.01f, 0.5f,  0.f };
+            position_ptr[6]  = { -0.01f, upper, 0.f };  position_ptr[7]  = { 0.01f, upper, 0.f };
+
+            // quad2
+            position_ptr[8]  = { -0.3f, upper, 0.f }; position_ptr[9]  = { 0.3f, upper, 0.f };
+            position_ptr[10] = { -0.3f, lower, 0.f }; position_ptr[11] = { 0.3f, lower, 0.f };
+
+            // quad3
+            position_ptr[12] = { -0.01f, lower, 0.f }; position_ptr[13] = { 0.01f, lower, 0.f };
+            position_ptr[14] = { -0.01f, -0.5f, 0.f }; position_ptr[15] = { 0.01f, -0.5f, 0.f };
+
+            // quad4
+            position_ptr[16] = { -0.3f, -0.5f,  0.f }; position_ptr[17] = { 0.3f, -0.5f,  0.f };
+            position_ptr[18] = { -0.3f, -0.52f, 0.f }; position_ptr[19] = { 0.3f, -0.52f, 0.f };
+
+
+            VertexDataPtr vertex_data = std::make_shared<std::vector<std::vector<uint8_t>>>();
+            if ((attribute_bit_mask & POSITION) != 0) {
+                vertex_data->push_back(position);
+            }
+            if ((attribute_bit_mask & NORMAL) != 0) {
+                vertex_data->push_back(normal);
+            }
+            if ((attribute_bit_mask & TANGENT) != 0) {
+                vertex_data->push_back(tangent);
+            }
+            if ((attribute_bit_mask & COLOR) != 0) {
+                vertex_data->push_back(color);
+            }
+            if ((attribute_bit_mask & UV) != 0) {
+                vertex_data->push_back(uv);
+            }
+            if ((attribute_bit_mask & BITANGENT) != 0) {
+                vertex_data->push_back(bitangent);
+            }
+
+            IndexDataPtr indices = std::make_shared<IndexData>(IndexData{ 
+                3,   1,  0,  0,  2,  3, // quad0
+                7,   5,  4,  4,  6,  7, // quad1
+                11,  9,  8,  8, 10, 11, // quad2
+                15, 13, 12, 12, 14, 15, // quad3
+                19, 17, 16, 16, 18, 19  // quad4
+            });
+
+            auto layout = std::make_shared<VertexDataDescriptor>();
+            if ((attribute_bit_mask & POSITION) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & NORMAL) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & TANGENT) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & COLOR) != 0) {
+                layout->push_back(GenericVertexLayout(4, { GenericVertexLayout::Attribute(4,5121,false,0) }));
+            }
+            if ((attribute_bit_mask & UV) != 0) {
+                layout->push_back(GenericVertexLayout(8, { GenericVertexLayout::Attribute(2,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & BITANGENT) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+
+            return std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr>(vertex_data, indices, layout);
+        }
+
+        void addPlane(
+            float width,
+            float height,
+            int attribute_bit_mask,
+            std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr>& geom,
+            bool z_up)
+        {
+            struct Vec2
+            {
+                float u, v;
+            };
+
+            struct Vec3
+            {
+                float x, y, z;
+            };
+
+            struct Color
+            {
+                uint8_t r, g, b, a;
+            };
+
+
+            std::vector<uint8_t> position(4 * sizeof(Vec3));
+            std::vector<uint8_t> normal(4 * sizeof(Vec3));
+            std::vector<uint8_t> tangent(4 * sizeof(Vec3));
+            std::vector<uint8_t> color(4 * sizeof(Color));
+            std::vector<uint8_t> uv(4 * sizeof(Vec2));
+            std::vector<uint8_t> bitangent(4 * sizeof(Vec3));
+
+            Vec3* position_ptr = reinterpret_cast<Vec3*>(position.data());
+            Vec3* normal_ptr = reinterpret_cast<Vec3*>(normal.data());
+            Vec3* tangent_ptr = reinterpret_cast<Vec3*>(tangent.data());
+            Color* color_ptr = reinterpret_cast<Color*>(color.data());
+            Vec2* uv_ptr = reinterpret_cast<Vec2*>(uv.data());
+            Vec3* bitangent_ptr = reinterpret_cast<Vec3*>(bitangent.data());
+
+            std::array<float, 4> width_signs = { -1.0f,1.0f,1.0f,-1.0f };
+            std::array<float, 4> height_signs = { -1.0f,-1.0f,1.0f,1.0f };
+
+            for (int i = 0; i < 4; ++i)
+            {
+                position_ptr[i].x = (width / 2.0f) * width_signs[i];
+                position_ptr[i].y = z_up ? (height / 2.0f) * height_signs[i] : 0.0f;
+                position_ptr[i].z = !z_up ? (height / 2.0f) * height_signs[i] : 0.0f;
+
+                normal_ptr[i].x = 0.0f;
+                normal_ptr[i].y = z_up ? 0.0f : 1.0f;
+                normal_ptr[i].z = !z_up ? 0.0f : 1.0f;
+
+                tangent_ptr[i].x = 1.0f;
+                tangent_ptr[i].y = 0.0f;
+                tangent_ptr[i].z = 0.0f;
+
+                color_ptr[i].r = 128;
+                color_ptr[i].g = 128;
+                color_ptr[i].b = 255;
+                color_ptr[i].a = 255;
+
+                uv_ptr[i].u = (width_signs[i] + 1.0f) / 2.0f;
+                uv_ptr[i].v = (height_signs[i] + 1.0f) / 2.0f;
+
+                bitangent_ptr[i].x = 0.0f;
+                bitangent_ptr[i].y = z_up ? -1.0f : 0.0f;
+                bitangent_ptr[i].z = !z_up ? 1.0f : 0.0f;
+            }
+
+            //VertexDataPtr vertex_data = std::make_shared<std::vector<std::vector<uint8_t>>>();
+            VertexDataPtr vertex_data = std::get<0>(geom);
+            if ((attribute_bit_mask & POSITION) != 0) {
+                vertex_data->push_back(position);
+            }
+            if ((attribute_bit_mask & NORMAL) != 0) {
+                vertex_data->push_back(normal);
+            }
+            if ((attribute_bit_mask & TANGENT) != 0) {
+                vertex_data->push_back(tangent);
+            }
+            if ((attribute_bit_mask & COLOR) != 0) {
+                vertex_data->push_back(color);
+            }
+            if ((attribute_bit_mask & UV) != 0) {
+                vertex_data->push_back(uv);
+            }
+            if ((attribute_bit_mask & BITANGENT) != 0) {
+                vertex_data->push_back(bitangent);
+            }
+
+            //IndexDataPtr indices = std::make_shared<IndexData>(IndexData{ 0,1,3,3,1,2 });
+            IndexDataPtr indices = std::get<1>(geom);
+            uint index_offset = indices->size();
+            indices->push_back(0 + index_offset);
+            indices->push_back(1 + index_offset);
+            indices->push_back(3 + index_offset);
+            indices->push_back(3 + index_offset);
+            indices->push_back(1 + index_offset);
+            indices->push_back(2 + index_offset);
+
+            //auto layout = std::make_shared<VertexDataDescriptor>();
+            auto layout = std::get<2>(geom);
+            if ((attribute_bit_mask & POSITION) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & NORMAL) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & TANGENT) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & COLOR) != 0) {
+                layout->push_back(GenericVertexLayout(4, { GenericVertexLayout::Attribute(4,5121,false,0) }));
+            }
+            if ((attribute_bit_mask & UV) != 0) {
+                layout->push_back(GenericVertexLayout(8, { GenericVertexLayout::Attribute(2,5126,false,0) }));
+            }
+            if ((attribute_bit_mask & BITANGENT) != 0) {
+                layout->push_back(GenericVertexLayout(12, { GenericVertexLayout::Attribute(3,5126,false,0) }));
+            }
+
+            //return std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr>(vertex_data, indices, layout);
         }
 
         std::tuple<VertexDataPtr, IndexDataPtr, VertexDataDescriptorPtr> createBox()
